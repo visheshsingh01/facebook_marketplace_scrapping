@@ -215,7 +215,7 @@ def scrape_products(browser, search_scrolls):
         except Exception as e:
             print("Error in processing products:", e)
         
-        
+        print("Collected images:", image_arr)
 
     except Exception as e: 
         print("⚠️ Error in getting the products:", e)
