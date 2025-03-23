@@ -1,5 +1,3 @@
-# Reddit Scraper Initial Setup
-
 import re  
 import time
 import json
@@ -26,12 +24,12 @@ def setup_driver():
 keyword = 'caterpillar'
 search_scrolls = 5
 
-
-def search_and_scrap(browser, keyword) :
-    try : 
+def search_and_scrap(browser, keyword):
+    try: 
         browser.get(f"https://www.reddit.com/search/?q={keyword}")
         time.sleep(5)
 
+        # Scroll to load more posts
         try:
             last_height = browser.execute_script("return document.body.scrollHeight")
             for _ in range(search_scrolls):
@@ -48,54 +46,133 @@ def search_and_scrap(browser, keyword) :
         except Exception as e:
             print("❌ Error in scrolling:", e)
 
-        # search_bar = WebDriverWait(browser, 10).until(
-        # EC.visibility_of_element_located((By.CSS_SELECTOR, "input[name='q']"))
-        #                             )
-        # search_bar.send_keys(keyword)
+        # Find posts
+        posts = WebDriverWait(browser, 10).until(
+            EC.visibility_of_all_elements_located((By.XPATH, "//a[@data-testid='post-title']"))
+        )
 
-        # search_bar = WebDriverWait(browser, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, "span.input-container.activated input[name='q']"))).send_keys(keyword)
+        print(f"✅ Found {len(posts)} posts.")
 
-        posts = WebDriverWait(browser, 10).until(EC.visibility_of_all_elements_located((By.XPATH, "//a[@data-testid='post-title']")))
-        if posts : 
-            print(f"all posts found {len(posts)}")
-        else: 
-            print("The class for the products not found :")
-        
     except Exception as e: 
-        print("No posts found",e)
- 
-    try:
+        print("❌ No posts found:", e)
+        return  # Exit if no posts found
+
+    # Loop through posts
+    for idx in range(len(posts)):
+        try:
+            # Re-fetch the posts list after each navigation
+            posts = WebDriverWait(browser, 10).until(
+                EC.visibility_of_all_elements_located((By.XPATH, "//a[@data-testid='post-title']"))
+            )
+
+            if idx >= len(posts):  
+                print(f"⚠️ Skipping post {idx + 1}, list updated and index out of range.")
+                continue
+
+            post = posts[idx]
+
+            # Click the post
+            actions = ActionChains(browser)
+            actions.move_to_element(post).perform()
+            browser.execute_script("arguments[0].scrollIntoView();", post)
+            time.sleep(1)
+            browser.execute_script("arguments[0].click();", post)
+            print(f"👉 Clicked on post {idx + 1}")
+            time.sleep(5)  # Process the post details
+
+            try : 
+                subreddit_name = WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "a.subreddit-name.whitespace-nowrap.text-12.text-neutral-content.font-bold.cursor-pointer")))
+                subreddit_name = subreddit_name.text
+                print(f"📚 Subreddit name: {subreddit_name}")
+            except Exception as e : 
+                print(f"❌ Subreddit name not found",e)
+                subreddit_name = "Not found"
+
+            try : 
+                author_name = WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "a.author-name.whitespace-nowrap.text-neutral-content")))
+                author_name = author_name.text
+                print(f"👥 Author name: {author_name}")
             
-            for idx, post in enumerate(posts):
-                print(f"\n🔍 Processing product {idx + 1}/{len(posts)}...")
-                actions = ActionChains(browser)
-                actions.move_to_element(post).perform()
-                time.sleep(1)
+            except Exception as e : 
+                print("Author name is not found")
+                author_name = "Not found"
+
+
+            try : 
+                                # Using CSS selector with an ID:
+                title = WebDriverWait(browser, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'h1[aria-label^="Post Title:"]'))
+                )
+
+                title = title.text
+                print(title)
+            except Exception as e : 
+                print("no title found")
+            # Go back to the search results page
+
+            try :
+                 
+                video_elem = WebDriverWait(browser, 10).until(
+                EC.presence_of_element_located((By.TAG_NAME, "video"))
+
+)
                 
-                # Scroll the product into view before clicking
-                browser.execute_script("arguments[0].scrollIntoView(true);", post)
-                time.sleep(1)
+                image_elem = WebDriverWait(browser, 10).until(
+                    EC.visibility_of_element_located((By.CSS_SELECTOR, "img#post-image"))
+                )
+
+
+                if video_elem:
+
+                    video_src = video_elem.get_attribute("src")
+                    print("Video Source:", video_src)
+
+                elif image_elem:
+                    image_src = image_elem.get_attribute("src")
+                    print("imgae source :",image_src)
+                elif not image_elem and not video_elem: 
+                    print("Neither video not image is available for this post")
+            except : 
+                print("No video or image is available for this post")
+
+
+
                 
-                # Click the product
-                try:
-                    post.click()
-                    print("👉 Clicked on the product")
-                except Exception as click_error:
-                    print("❌ Error clicking the product:", click_error)
-                    continue  # Skip to the next product if click fails
-                time.sleep(5)
-
-                browser.back()
-                WebDriverWait(browser, 10).until(lambda d: d.execute_script("return document.readyState") == "complete")
 
 
-                time.sleep(3)
 
-    except Exception as e: 
-        print("Error in clicking the products",e)
+            browser.back()
+            WebDriverWait(browser, 10).until(lambda d: d.execute_script("return document.readyState") == "complete")
+            
+            time.sleep(3)
+
+            
+
+            
+
+
+            # try : 
+            #     author_name = WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "")))
+            #     author_name = author_name.text
+            #     print(f"👥 Author name: {author_name}")
+            
+            # except Exception as e : 
+            #     print("Author name is not found")
+            #     author_name = "Not found"
+
+            
         
+                
 
-    
+
+
+
+        except Exception as e:
+            print(f"❌ Error processing post {idx + 1}:", e)
+            
+
+
+
 
 
 # Main function to start scraping
@@ -104,9 +181,7 @@ def main():
     browser.get("https://www.reddit.com")
     WebDriverWait(browser, 20).until(lambda d: d.execute_script("return document.readyState") == "complete")
     search_and_scrap(browser, keyword)
-    
     browser.quit()
-    
 
 if __name__ == "__main__":
     main()
