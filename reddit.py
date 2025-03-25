@@ -22,7 +22,7 @@ def setup_driver():
     return browser
 
 keyword = 'caterpillar'
-search_scrolls = 5
+search_scrolls = 2
 
 def search_and_scrap(browser, keyword):
     try: 
@@ -80,16 +80,24 @@ def search_and_scrap(browser, keyword):
             print(f"👉 Clicked on post {idx + 1}")
             time.sleep(5)  # Process the post details
 
-            try : 
-                subreddit_name = WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "a.subreddit-name.whitespace-nowrap.text-12.text-neutral-content.font-bold.cursor-pointer")))
-                subreddit_name = subreddit_name.text
+            try:
+                subreddit_element = WebDriverWait(browser, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/r/']"))
+                )
+                subreddit_url = subreddit_element.get_attribute("href")
+
+                # Extract subreddit name from URL using regex
+                match = re.search(r'/r/([^/]+)', subreddit_url)
+                subreddit_name = match.group(1) if match else "Not found"
+
                 print(f"📚 Subreddit name: {subreddit_name}")
-            except Exception as e : 
-                print(f"❌ Subreddit name not found",e)
+
+            except Exception as e:
+                print(f"❌ Subreddit name not found", e)
                 subreddit_name = "Not found"
 
             try : 
-                author_name = WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "a.author-name.whitespace-nowrap.text-neutral-content")))
+                author_name = WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/user/']")))
                 author_name = author_name.text
                 print(f"👥 Author name: {author_name}")
             
@@ -110,30 +118,37 @@ def search_and_scrap(browser, keyword):
                 print("no title found")
             # Go back to the search results page
 
-            try :
+#             try :
                  
-                video_elem = WebDriverWait(browser, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, "video"))
+#                 video_elem = WebDriverWait(browser, 10).until(
+#                 EC.presence_of_element_located((By.TAG_NAME, "video"))
 
-)
-                
+# )
+            try:
+            
                 image_elem = WebDriverWait(browser, 10).until(
-                    EC.visibility_of_element_located((By.CSS_SELECTOR, "img#post-image"))
+                    EC.presence_of_element_located((By.ID, "post-image"))
                 )
+                image_url = image_elem.get_attribute("src")
+                print("this is image url :",image_url)
+            except Exception as e : 
+                print("NO image found", e)
 
 
-                if video_elem:
 
-                    video_src = video_elem.get_attribute("src")
-                    print("Video Source:", video_src)
 
-                elif image_elem:
-                    image_src = image_elem.get_attribute("src")
-                    print("imgae source :",image_src)
-                elif not image_elem and not video_elem: 
-                    print("Neither video not image is available for this post")
-            except : 
-                print("No video or image is available for this post")
+                # if video_elem:
+
+                #     video_src = video_elem.get_attribute("src")
+                #     print("Video Source:", video_src)
+
+            #     elif image_elem:
+            #         image_src = image_elem.get_attribute("src")
+            #         print("imgae source :",image_src)
+            #     elif not image_elem and not video_elem: 
+            #         print("Neither video not image is available for this post")
+            # except : 
+            #     print("No video or image is available for this post")
 
 
 
