@@ -87,7 +87,7 @@ def extract_ads(browser):
 
                 try: 
                     title = browser.find_element(By.CSS_SELECTOR, "div.x2izyaf.x1lq5wgf.xgqcy7u.x30kzoy.x9jhf4c.xyamay9.x1pi30zi.x1l90r2v.x1swvt13.x1741yl6.x1xqjhkw span.x8t9es0.xw23nyj.x63nzvj.x1fp01tm.xq9mrsl.x1h4wwuj.x117nqv4.xeuugli.x1i64zmx")
-                    print(title.text)
+                    print("the title is ", title.text)
 
                 
 
@@ -136,15 +136,19 @@ def extract_ads(browser):
 
                         print('about advertiser is not found')
 
-                    try : 
-                        advertiser_image = WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "div.x78zum5.xwxc41k.x7a106z span.x8t9es0.x1uxerd5.xrohxju.x108nfp6.xq9mrsl.x1h4wwuj.x117nqv4.xeuugli img")))
-                        advertiser_image = advertiser_image.get_attribute('src')
-                        print("this is advertiser image", advertiser_image)
+                    try:
+                        advertiser_logo_element = WebDriverWait(browser, 10).until(
+                            EC.visibility_of_element_located((By.CSS_SELECTOR, "div.x78zum5.xwxc41k.x7a106z img"))
+                        )
+                        advertiser_logo = advertiser_logo_element.get_attribute('src')
+                        print("This is advertiser image:", advertiser_logo)
 
-                    except Exception as e : 
-                        print("no image is found for the advertiser")
+                    except Exception as e:
+                        print("No image is found for the advertiser. Error:", str(e))
+
+                    
                 except Exception as e : 
-                    print("no bio about ad is found")
+                    print("Dropdown for the ad bio is not found")
 
                     
 
@@ -160,7 +164,7 @@ def extract_ads(browser):
                         browser.execute_script("arguments[0].scrollIntoView(true);", close_button)
                         print("Close button found for current pop-up, clicking to close it.")
                         close_button.click()
-                        time.sleep(4)
+                        time.sleep(5)
                 except Exception as e:
                         print("No close button found for current pop-up:", e)
 
