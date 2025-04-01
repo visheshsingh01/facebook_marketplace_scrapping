@@ -208,6 +208,20 @@ def scrape_products(browser, search_scrolls):
                 except Exception as e : 
                     print("❌ No seller name found:", e)
 
+
+                # Extract seller details by clicking on the link that opens the modal
+                try:
+                    seller_profile_element  = WebDriverWait(browser, 10).until(
+                        EC.element_to_be_clickable((By.XPATH, "//a[@aria-label='Seller details']"))
+                    )
+                    seller_profile_link = seller_profile_element.get_attribute("href")
+                    print(f"Here is the seller profile link", seller_profile_link)
+                except Exception as e : 
+                    print("Seller profile link not found")
+
+
+
+
                 # Extract images and carousel images
                 try:
                     initial_image = WebDriverWait(browser, 10).until(

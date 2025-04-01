@@ -1,6 +1,7 @@
 import time
 import logging
 import urllib.parse
+import json
 from flask import Flask, request, render_template_string, jsonify
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -20,6 +21,7 @@ class FacebookAdsScraper:
         self.country = country
         self.url = self.get_ads_url()
         self.browser = None
+        self.ads_data = []  # Structured object to store JSON data for each ad
 
     def setup_driver(self):
         options = webdriver.ChromeOptions()
@@ -71,6 +73,15 @@ class FacebookAdsScraper:
 
             for idx, ad in enumerate(ads_elements, start=1):
                 logging.info("Processing ad #%s", idx)
+                # Initialize data variables for current ad
+                ad_title = None
+                library_id = None
+                started_info = None
+                ad_text = None
+                logo_url = None
+                advertiser_info = None
+                ad_link = None
+
                 # Click "See ad details"
                 try:
                     WebDriverWait(self.browser, 10).until(
@@ -93,11 +104,13 @@ class FacebookAdsScraper:
                         By.CSS_SELECTOR,
                         "div.x2izyaf.x1lq5wgf.xgqcy7u.x30kzoy.x9jhf4c.xyamay9.x1pi30zi.x1l90r2v.x1swvt13.x1741yl6.x1xqjhkw span.x8t9es0.xw23nyj.x63nzvj.x1fp01tm.xq9mrsl.x1h4wwuj.x117nqv4.xeuugli.x1i64zmx"
                     )
-                    logging.info("Ad #%s title: %s", idx, status.text)
+                    ad_title = status.text
+                    logging.info("Ad #%s title: %s", idx, ad_title)
                 except Exception:
                     logging.info("Ad #%s: No title found.", idx)
 
                 # Extract Library ID
+                # Extract Library ID and construct ad link
                 try:
                     container = WebDriverWait(self.browser, 10).until(
                         EC.visibility_of_element_located((
@@ -105,40 +118,55 @@ class FacebookAdsScraper:
                             "div.x2izyaf.x1lq5wgf.xgqcy7u.x30kzoy.x9jhf4c.xyamay9.x1pi30zi.x1l90r2v.x1swvt13.x1741yl6.x1xqjhkw"
                         ))
                     )
-                    lib_id = container.find_element(By.XPATH, ".//span[contains(text(), 'Library ID:')]")
-                    logging.info("Ad #%s Library ID: %s", idx, lib_id.text)
-                except Exception:
-                    logging.info("Ad #%s: No Library ID found.", idx)
+                    lib_id_element = WebDriverWait(container, 5).until(
+                        EC.visibility_of_element_located((By.XPATH, ".//span[contains(text(), 'Library ID:')]"))
+                    )
+                    library_id_text = lib_id_element.text
+                    # Remove "Library ID: " part if necessary
+                    library_id = library_id_text.replace("Library ID: ", "").strip()
+                    if library_id:
+                        ad_link = f"https://www.facebook.com/ads/library/?id={library_id}"
+                        logging.info("Ad #%s Library ID: %s", idx, library_id)
+                        logging.info("Ad #%s Ad Link: %s", idx, ad_link)
+                    else:
+                        ad_link = None
+                        logging.warning("Ad #%s: Library ID extraction returned empty string.", idx)
+                except Exception as e:
+                    logging.info("Ad #%s: No Library ID found. Error: %s", idx, e)
+                    library_id = None
+                    ad_link = None
 
                 # Extract "Started running on" info
                 try:
                     container = WebDriverWait(self.browser, 10).until(
-                        EC.visibility_of_element_located((
+                        EC.visibility_of_element_located(( 
                             By.CSS_SELECTOR,
                             "div.x2izyaf.x1lq5wgf.xgqcy7u.x30kzoy.x9jhf4c.xyamay9.x1pi30zi.x1l90r2v.x1swvt13.x1741yl6.x1xqjhkw"
                         ))
                     )
-                    started_info = container.find_element(By.XPATH, ".//span[contains(text(), 'Started running on')]")
-                    logging.info("Ad #%s started: %s", idx, started_info.text)
+                    started = container.find_element(By.XPATH, ".//span[contains(text(), 'Started running on')]")
+                    started_info = started.text
+                    logging.info("Ad #%s started: %s", idx, started_info)
                 except Exception:
                     logging.info("Ad #%s: No 'Started running on' info found.", idx)
 
                 # Extract ad text
                 try:
                     ad_text_elem = WebDriverWait(self.browser, 10).until(
-                        EC.visibility_of_element_located((
+                        EC.visibility_of_element_located(( 
                             By.CSS_SELECTOR,
                             'div.x178xt8z.xm81vs4.xso031l.xy80clv.x13fuv20.xu3j5b3.x1q0q8m5.x26u7qi.x15bcfbt.xolcy6v.x3ckiwt.xc2dlm9.x2izyaf.x1lq5wgf.xgqcy7u.x30kzoy.x9jhf4c.x1t2gpz5.x9f619.x6ikm8r.x10wlt62.x1n2onr6 div[style="white-space: pre-wrap;"] span'
                         ))
                     )
-                    logging.info("Ad #%s text: %s", idx, ad_text_elem.text)
+                    ad_text = ad_text_elem.text
+                    logging.info("Ad #%s text: %s", idx, ad_text)
                 except Exception:
                     logging.info("Ad #%s: No ad text found.", idx)
 
                 # Extract ad logo URL
                 try:
                     ad_logo = WebDriverWait(self.browser, 10).until(
-                        EC.visibility_of_element_located((
+                        EC.visibility_of_element_located(( 
                             By.CSS_SELECTOR, "div._7jyg._7jyi img._8nqq.img"
                         ))
                     )
@@ -150,7 +178,7 @@ class FacebookAdsScraper:
                 # Click to show "about" info and extract advertiser info
                 try:
                     about_ad = WebDriverWait(self.browser, 10).until(
-                        EC.element_to_be_clickable((
+                        EC.element_to_be_clickable(( 
                             By.CSS_SELECTOR,
                             "div.x6s0dn4.x1ypdohk.x78zum5.x1q0g3np.x1p5oq8j.xxbr6pl.xwxc41k.xbbxn1n"
                         ))
@@ -159,12 +187,13 @@ class FacebookAdsScraper:
                     about_ad.click()
                     try:
                         about_advertiser = WebDriverWait(self.browser, 10).until(
-                            EC.visibility_of_element_located((
+                            EC.visibility_of_element_located(( 
                                 By.CSS_SELECTOR,
                                 "div.x78zum5.xwxc41k.x7a106z span.x8t9es0.x1uxerd5.xrohxju.x108nfp6.xq9mrsl.x1h4wwuj.x117nqv4.xeuugli"
                             ))
                         )
-                        logging.info("Ad #%s advertiser info: %s", idx, about_advertiser.text)
+                        advertiser_info = about_advertiser.text
+                        logging.info("Ad #%s advertiser info: %s", idx, advertiser_info)
                     except Exception:
                         logging.info("Ad #%s: About advertiser info not found.", idx)
                 except Exception:
@@ -175,7 +204,7 @@ class FacebookAdsScraper:
                 while retry < 2:
                     try:
                         close_button = WebDriverWait(self.browser, 10).until(
-                            EC.element_to_be_clickable((
+                            EC.element_to_be_clickable(( 
                                 By.CSS_SELECTOR,
                                 "div.x7a106z.x78zum5.x2lah0s.x9otpla.x1wsgfga.x1n0m28w"
                             ))
@@ -192,8 +221,32 @@ class FacebookAdsScraper:
                         time.sleep(2)
                 # Short pause before processing next ad
                 time.sleep(2)
+
+                # Save the ad data into our structured JSON object
+                ad_data = {
+                    "ad_number": idx,
+                    "title": ad_title,
+                    "library_id": library_id,
+                    "started_running": started_info,
+                    "ad_text": ad_text,
+                    "logo_url": logo_url,
+                    "advertiser_info": advertiser_info
+                }
+                self.ads_data.append(ad_data)
+            
+            # Save all ads data to a JSON file after processing is complete
+            self.save_json_data()
         except Exception as e:
             logging.error("Error in extracting ads: %s", e)
+
+    def save_json_data(self):
+        """Saves the collected ads data to a JSON file."""
+        try:
+            with open("ads_data.json", "w") as f:
+                json.dump(self.ads_data, f, indent=4)
+            logging.info("Ads data successfully saved to ads_data.json")
+        except Exception as e:
+            logging.error("Failed to save JSON data: %s", e)
 
     def run(self):
         try:
